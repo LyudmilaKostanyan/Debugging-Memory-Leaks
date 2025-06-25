@@ -3,17 +3,29 @@ name: AddressSanitizer Leak Test
 on: [push, pull_request]
 
 jobs:
-  leak-check:
-    runs-on: ubuntu-latest
+  asan-test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    runs-on: ${{ matrix.os }}
+
     steps:
       - uses: actions/checkout@v3
 
-      - name: Configure CMake project
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
-
-      - name: Build project
-        run: cmake --build build
+      - name: Configure & Build with AddressSanitizer
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_C_COMPILER=cc \
+            -DCMAKE_CXX_COMPILER=c++ \
+            -DCMAKE_CXX_FLAGS="-fsanitize=address -g -O1" \
+            -DCMAKE_BUILD_TYPE=Debug
+          cmake --build build
 
       - name: Run with AddressSanitizer
         run: |
-          ASAN_OPTIONS=detect_leaks=1 ./build/memory_leak
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            export ASAN_OPTIONS=detect_leaks=1:abort_on_error=1
+          fi
+          ./build/memory_leak
+        shell: bash
