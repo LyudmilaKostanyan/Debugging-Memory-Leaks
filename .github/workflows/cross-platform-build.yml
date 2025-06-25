@@ -1,0 +1,19 @@
+name: AddressSanitizer Leak Test
+
+on: [push, pull_request]
+
+jobs:
+  leak-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Configure CMake project
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+
+      - name: Build project
+        run: cmake --build build
+
+      - name: Run with AddressSanitizer
+        run: |
+          ASAN_OPTIONS=detect_leaks=1 ./build/memory_leak
