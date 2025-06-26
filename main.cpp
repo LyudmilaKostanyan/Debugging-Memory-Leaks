@@ -1,9 +1,14 @@
 #include <iostream>
+#include <vector>
+
+std::vector<int*> leaks;
 
 void leak_memory() {
-    // int* ptr = new int[100];
-    // ptr[0] = 42;
-    // std::cout << "Leaked memory with value: " << ptr[0] << std::endl;
+    for (int i = 0; i < 1000; i++) {
+        int* ptr = new int[100];
+        ptr[0] = 42;
+        leaks.push_back(ptr);
+    }
 }
 
 int main() {

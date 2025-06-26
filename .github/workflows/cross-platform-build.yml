@@ -3,39 +3,64 @@ name: AddressSanitizer Leak Test
 on: [push, pull_request]
 
 jobs:
-  asan-test:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-
-    runs-on: ${{ matrix.os }}
-
+  asan-gcc-ubuntu:
+    name: GCC (Ubuntu)
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout Repository
+        uses: actions/checkout@v3
 
-      - name: Configure and Build with AddressSanitizer
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++ clang
+
+      - name: Configure and Build with GCC
         run: |
           cmake -S . -B build \
-            -DCMAKE_C_COMPILER=cc \
-            -DCMAKE_CXX_COMPILER=c++ \
+            -DCMAKE_C_COMPILER=gcc \
+            -DCMAKE_CXX_COMPILER=g++ \
             -DCMAKE_CXX_FLAGS="-fsanitize=address -g -O1" \
             -DCMAKE_BUILD_TYPE=Debug
           cmake --build build
 
-      - name: Run with AddressSanitizer
+      - name: Run and Capture ASan Output
         run: |
-          export ASAN_OPTIONS="verbosity=1:log_path=asan-log"
-          
-          if [ "${{ runner.os }}" = "Linux" ]; then
-            export ASAN_OPTIONS="detect_leaks=1:$ASAN_OPTIONS"
-          fi
+          export ASAN_OPTIONS="detect_leaks=1:abort_on_error=0:leak_check_at_exit=1:verbosity=1"
+          ./build/memory_leak 2> asan_output.txt || true
+          echo "===== AddressSanitizer Output (GCC) ====="
+          cat asan_output.txt
+          grep -q "ERROR: LeakSanitizer" asan_output.txt && exit 0
+          echo "No memory leaks detected — test failed."
+          exit 1
 
-          ./build/memory_leak 2>&1 | tee asan.out
+  asan-clang-ubuntu:
+    name: Clang (Ubuntu)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
 
-          if ls asan-log.* 1>/dev/null 2>&1; then
-            echo "--- AddressSanitizer log ---"
-            cat asan-log.*
-          else
-            echo "No ASan log file found."
-          fi
-        shell: bash
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake clang
+
+      - name: Configure and Build with Clang
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_C_COMPILER=clang \
+            -DCMAKE_CXX_COMPILER=clang++ \
+            -DCMAKE_CXX_FLAGS="-fsanitize=address -g -O1" \
+            -DCMAKE_BUILD_TYPE=Debug
+          cmake --build build
+
+      - name: Run and Capture ASan Output
+        run: |
+          export ASAN_OPTIONS="detect_leaks=1:abort_on_error=0:leak_check_at_exit=1:verbosity=1"
+          ./build/memory_leak 2> asan_output.txt || true
+          echo "===== AddressSanitizer Output (Clang) ====="
+          cat asan_output.txt
+          grep -q "ERROR: LeakSanitizer" asan_output.txt && exit 0
+          echo "No memory leaks detected — test failed."
+          exit 1
