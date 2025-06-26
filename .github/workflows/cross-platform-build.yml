@@ -57,7 +57,6 @@ jobs:
 
       - name: Run and Capture ASan Output
         run: |
-          export ASAN_OPTIONS="detect_leaks=1:abort_on_error=0:leak_check_at_exit=1:verbosity=1"
           ./build/memory_leak 2> asan_output.txt || true
           echo "===== AddressSanitizer Output (Clang) ====="
           cat asan_output.txt
